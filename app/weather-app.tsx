@@ -16,6 +16,52 @@ const sceneFor = (code: number, isDay: number) => !isDay ? "night" : code === 0 
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 const fmtDay = (s: string, i: number) => i === 0 ? "Bugün" : new Date(s).toLocaleDateString("tr-TR", { weekday: "long" });
 
+function RainCanvas({ active, storm, windSpeed, windDirection }: { active: boolean; storm: boolean; windSpeed: number; windDirection: number }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!active || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    let width = 0, height = 0, frame = 0, previous = performance.now();
+    type Drop = { x: number; y: number; depth: number; speed: number; length: number; opacity: number };
+    let drops: Drop[] = [];
+    const makeDrop = (randomY = false): Drop => {
+      const depth = .2 + Math.random() * .8;
+      return { x: Math.random() * width, y: randomY ? Math.random() * height : -Math.random() * height * .25, depth, speed: 470 + depth * (storm ? 760 : 610), length: 5 + depth * (storm ? 28 : 21), opacity: .05 + depth * (storm ? .3 : .22) };
+    };
+    const resize = () => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.6);
+      width = window.innerWidth; height = window.innerHeight;
+      canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+      canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const count = Math.round(Math.min(220, Math.max(85, width / (storm ? 6.5 : 9))));
+      drops = Array.from({ length: count }, () => makeDrop(true));
+    };
+    const horizontalSpeed = Math.sin(windDirection * Math.PI / 180) * Math.min(34, windSpeed * 1.45);
+    const draw = (now: number) => {
+      const delta = Math.min(.032, (now - previous) / 1000); previous = now;
+      context.clearRect(0, 0, width, height);
+      context.lineCap = "round";
+      for (const drop of drops) {
+        const vx = horizontalSpeed * (.45 + drop.depth * .55);
+        drop.x += vx * delta; drop.y += drop.speed * delta;
+        if (drop.y > height + drop.length || drop.x < -40 || drop.x > width + 40) Object.assign(drop, makeDrop(false));
+        const gradient = context.createLinearGradient(drop.x, drop.y - drop.length, drop.x, drop.y);
+        gradient.addColorStop(0, "rgba(194,226,240,0)");
+        gradient.addColorStop(1, `rgba(224,242,250,${drop.opacity})`);
+        context.strokeStyle = gradient; context.lineWidth = .45 + drop.depth * 1.05;
+        context.beginPath(); context.moveTo(drop.x - vx * .035, drop.y - drop.length); context.lineTo(drop.x, drop.y); context.stroke();
+      }
+      frame = requestAnimationFrame(draw);
+    };
+    resize(); window.addEventListener("resize", resize); frame = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); context.clearRect(0, 0, width, height); };
+  }, [active, storm, windSpeed, windDirection]);
+  return <canvas ref={canvasRef} className="rain-canvas" aria-hidden="true" />;
+}
+
 export default function WeatherApp() {
   const [place, setPlace] = useState<Place>(ISTANBUL);
   const [data, setData] = useState<WeatherData | null>(null);
@@ -149,7 +195,6 @@ export default function WeatherApp() {
       <div className="cloud cloud-a"/><div className="cloud cloud-b"/><div className="cloud cloud-c"/>
       <div className="fog-bank fog-a"/><div className="fog-bank fog-b"/>
       <div className="horizon horizon-a"/><div className="horizon horizon-b"/>
-      <div className="rain-curtain rain-far"/><div className="rain-curtain rain-mid"/><div className="rain-curtain rain-near"/>
       <div className="precip">{Array.from({length:72},(_,i)=>{
         const depth = .55 + (i % 5) * .18;
         const windPush = Math.sin(((data?.current.wind_direction_10m || 0) * Math.PI) / 180) * (data?.current.wind_speed_10m || 8) * 3;
@@ -157,6 +202,7 @@ export default function WeatherApp() {
       })}</div>
       <div className="lightning"><i/><i/><i/></div><div className="scene-glow"/>
     </div>
+    <RainCanvas active={scene === "rain" || scene === "storm"} storm={scene === "storm"} windSpeed={data?.current.wind_speed_10m || 0} windDirection={data?.current.wind_direction_10m || 0}/>
     <header className="topbar">
       <button className="brand" onClick={() => choosePlace(ISTANBUL)}><span className="brand-mark">◒</span><span>ATMOS</span></button>
       <div className="header-actions">
