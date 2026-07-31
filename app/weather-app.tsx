@@ -149,6 +149,7 @@ export default function WeatherApp() {
       <div className="cloud cloud-a"/><div className="cloud cloud-b"/><div className="cloud cloud-c"/>
       <div className="fog-bank fog-a"/><div className="fog-bank fog-b"/>
       <div className="horizon horizon-a"/><div className="horizon horizon-b"/>
+      <div className="rain-curtain rain-far"/><div className="rain-curtain rain-mid"/><div className="rain-curtain rain-near"/>
       <div className="precip">{Array.from({length:72},(_,i)=>{
         const depth = .55 + (i % 5) * .18;
         const windPush = Math.sin(((data?.current.wind_direction_10m || 0) * Math.PI) / 180) * (data?.current.wind_speed_10m || 8) * 3;
