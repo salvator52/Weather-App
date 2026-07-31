@@ -144,12 +144,16 @@ export default function WeatherApp() {
 
   return <main ref={shellRef} onMouseMove={handleParallax} className={`weather-shell scene-${scene} theme-${theme} ${twilight ? "is-twilight" : ""} ${sceneChanging ? "scene-changing" : ""}`}>
     <div className="atmosphere" style={atmosphereStyle} aria-hidden="true">
-      <div className="stars">{Array.from({length:24},(_,i)=><i key={i} style={{"--i":i} as React.CSSProperties}/>)}</div>
+      <div className="stars">{Array.from({length:24},(_,i)=><i key={i} style={{"--i":i,left:`${(i * 47 + i * i * 7) % 98}%`,top:`${4 + (i * 29 + i * i * 3) % 60}%`,width:`${1 + i % 3}px`,height:`${1 + i % 3}px`,animationDuration:`${2.2 + (i % 5) * .5}s`,animationDelay:`-${i * .19}s`} as React.CSSProperties}/>)}</div>
       <div className="sun"><div className="sun-rays"/></div><div className="moon"/>
       <div className="cloud cloud-a"/><div className="cloud cloud-b"/><div className="cloud cloud-c"/>
       <div className="fog-bank fog-a"/><div className="fog-bank fog-b"/>
       <div className="horizon horizon-a"/><div className="horizon horizon-b"/>
-      <div className="precip">{Array.from({length:42},(_,i)=><i key={i} style={{"--i":i,"--size":`${1+(i%4)*.8}px`,"--opacity":.22+(i%5)*.1,"--fall-duration":`${.72+(i%7)*.16}s`,"--drift":`${18+(i%6)*11}px`} as React.CSSProperties}/>)}</div>
+      <div className="precip">{Array.from({length:72},(_,i)=>{
+        const depth = .55 + (i % 5) * .18;
+        const windPush = Math.sin(((data?.current.wind_direction_10m || 0) * Math.PI) / 180) * (data?.current.wind_speed_10m || 8) * 3;
+        return <i key={i} style={{"--i":i,"--size":`${.65+depth}px`,"--length":`${18+depth*24}px`,"--opacity":.16+depth*.28,"--fall-duration":`${1.28-depth*.47+(i%4)*.07}s`,"--drift":`${windPush*depth+(i%3)*8}px`,left:`${((i*37)+(i*i*13)+11)%101}%`,animationDelay:`-${((i*31)%100)/47}s`,filter:`blur(${depth<.75?.55:0}px)`} as React.CSSProperties}/>;
+      })}</div>
       <div className="lightning"><i/><i/><i/></div><div className="scene-glow"/>
     </div>
     <header className="topbar">
