@@ -15,7 +15,7 @@ Hava koşullarına göre görünümü ve hareketleri tamamen değişen, modern v
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Open--Meteo](https://img.shields.io/badge/Open--Meteo-Weather_API-48A9E6?style=for-the-badge&logo=icloud&logoColor=white)](https://open-meteo.com/)
 
-[Canlı demoyu aç](https://atmos-weather-istanbul.mhmmdyrk4434.chatgpt.site) · [Hata bildir](../../issues) · [Özellik öner](../../issues/new)
+[Canlı demoyu aç](https://salvator52.github.io/Weather-App/) · [Hata bildir](../../issues) · [Özellik öner](../../issues/new)
 
 </div>
 
@@ -78,7 +78,7 @@ Saatlik kartlardan biri seçildiğinde ana sıcaklık, hava açıklaması ve atm
 |---|---|
 | React 19 | Bileşen tabanlı kullanıcı arayüzü |
 | TypeScript | Tip güvenliği ve daha sağlam veri modeli |
-| Vite + Vinext | Geliştirme, derleme ve Cloudflare uyumlu çıktı |
+| Vite | Hızlı geliştirme ve statik üretim derlemesi |
 | Tailwind CSS 4 | Tasarım altyapısı ve CSS işleme |
 | Motion for React | Giriş, çıkış, liste ve tema animasyonları |
 | React Bits yaklaşımı | Spotlight etkileşimli cam kart yüzeyleri |
@@ -108,18 +108,18 @@ Uygulama için bir backend veya veritabanı gerekmez. Hava ve şehir arama veril
 
 ```text
 weather-app/
+├── .github/workflows/
+│   └── deploy.yml           # GitHub Pages otomatik dağıtımı
 ├── app/
 │   ├── globals.css          # Tema, responsive tasarım ve atmosfer efektleri
-│   ├── layout.tsx           # Metadata, ikonlar ve sosyal paylaşım ayarları
-│   ├── page.tsx             # Ana sayfa girişi
 │   └── weather-app.tsx      # API, durum yönetimi ve tüm hava arayüzü
+├── src/
+│   └── main.tsx             # React uygulama girişi
 ├── public/
 │   ├── favicon.svg
 │   ├── og.png
 │   └── og-v2.png            # Güncel sosyal paylaşım görseli
-├── tests/                   # Derleme ve HTML kontrolleri
-├── worker/                  # Cloudflare Worker girişi
-├── .openai/hosting.json     # Sites yayın yapılandırması
+├── index.html               # Sayfa metadata ve kök elementi
 ├── package.json
 ├── vite.config.ts
 └── tsconfig.json
@@ -145,14 +145,7 @@ npm run dev
 Geliştirme sunucusu varsayılan olarak aşağıdaki adreste açılır:
 
 ```text
-http://localhost:3000
-```
-
-Windows PowerShell yürütme politikası nedeniyle `npm run dev` çalışmazsa:
-
-```powershell
-$env:WRANGLER_LOG_PATH='.wrangler/wrangler.log'
-.\node_modules\.bin\vinext.cmd dev
+http://localhost:5173/Weather-App/
 ```
 
 ## Kullanılabilir komutlar
@@ -161,7 +154,7 @@ $env:WRANGLER_LOG_PATH='.wrangler/wrangler.log'
 |---|---|
 | `npm run dev` | Yerel geliştirme sunucusunu başlatır |
 | `npm run build` | Üretim derlemesini oluşturur |
-| `npm run start` | Üretim sunucusunu çalıştırır |
+| `npm run preview` | Üretim derlemesini yerelde önizler |
 | `npm run lint` | Kod kalite kontrollerini çalıştırır |
 | `npm test` | Derleme ve HTML kontrollerini çalıştırır |
 
@@ -209,13 +202,21 @@ Seçilen saat gece aralığındaysa hava kodundan bağımsız olarak gece sahnes
 - Favoriler, tema ve son şehir yalnızca tarayıcı `localStorage` alanında tutulur.
 - Uygulamada kullanıcı hesabı veya takip sistemi bulunmaz.
 
-## Yayınlama
+## GitHub Pages'e yayınlama
 
-Projenin çalışan özel sürümü Sites üzerinde yayınlanmaktadır:
+Uygulama `main` branch'ine her gönderimde GitHub Actions tarafından otomatik olarak derlenir ve GitHub Pages'e yayımlanır:
 
-**[atmos-weather-istanbul.mhmmdyrk4434.chatgpt.site](https://atmos-weather-istanbul.mhmmdyrk4434.chatgpt.site)**
+**[salvator52.github.io/Weather-App](https://salvator52.github.io/Weather-App/)**
 
-GitHub Pages üzerinde yayınlamak için uygulamanın standart statik Vite çıktısına uyarlanması ve GitHub Actions workflow'u eklenmesi gerekir. Repository adı alt dizin olarak kullanılacaksa Vite `base` değeri `/<REPO-ADI>/` olmalıdır.
+İlk kullanımda repoda **Settings → Pages → Build and deployment → Source** bölümünden **GitHub Actions** seçilmelidir. Sonraki yayınlar için yalnızca değişiklikleri `main` branch'ine göndermek yeterlidir:
+
+```bash
+git add .
+git commit -m "Update Atmos"
+git push origin main
+```
+
+Dağıtım durumu repo içindeki **Actions** sekmesinden izlenebilir. Vite yapılandırmasındaki `base: "/Weather-App/"`, CSS ve JavaScript dosyalarının GitHub Pages alt dizininden doğru yüklenmesini sağlar.
 
 ## Yol haritası
 
@@ -233,7 +234,7 @@ GitHub Pages üzerinde yayınlamak için uygulamanın standart statik Vite çık
 - [ ] PWA ve çevrimdışı son veri desteği
 - [ ] Birim seçimi: °C/°F ve km/h/mph
 - [ ] Otomatik test kapsamının genişletilmesi
-- [ ] GitHub Pages statik dağıtım workflow'u
+- [x] GitHub Pages statik dağıtım workflow'u
 
 ## Katkıda bulunma
 

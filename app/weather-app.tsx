@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, Compass, Droplets, Eye, Gauge, Heart, LocateFixed, MapPin, Moon, Navigation, Search, Sparkles, Sun, Sunrise, Sunset, Umbrella, Wind, X } from "lucide-react";
+import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, Droplets, Eye, Gauge, Heart, LocateFixed, MapPin, Moon, Search, Sparkles, Sun, Sunrise, Sunset, Wind } from "lucide-react";
 
 type Place = { name: string; country: string; latitude: number; longitude: number; admin1?: string };
 type WeatherData = {
@@ -13,7 +13,6 @@ type WeatherData = {
 
 const ISTANBUL: Place = { name: "İstanbul", country: "Türkiye", latitude: 41.0082, longitude: 28.9784 };
 const weatherLabel = (c: number) => c === 0 ? "Açık" : c <= 3 ? "Parçalı bulutlu" : c <= 48 ? "Sisli" : c <= 57 ? "Çisenti" : c <= 67 ? "Yağmurlu" : c <= 77 ? "Karlı" : c <= 82 ? "Sağanak yağışlı" : c <= 86 ? "Kar sağanaklı" : "Gök gürültülü";
-const weatherIcon = (c: number, day = true) => c === 0 ? (day ? "☀" : "☾") : c <= 3 ? "☁" : c <= 48 ? "≋" : c <= 67 || (c >= 80 && c <= 82) ? "☂" : c <= 86 ? "❄" : "ϟ";
 const sceneFor = (code: number, isDay: number) => !isDay ? "night" : code === 0 ? "clear" : code <= 3 ? "cloudy" : code <= 48 ? "fog" : code <= 67 || (code >= 80 && code <= 82) ? "rain" : code <= 86 ? "snow" : "storm";
 const fmtTime = (s: string) => new Date(s).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 const fmtDay = (s: string, i: number) => i === 0 ? "Bugün" : new Date(s).toLocaleDateString("tr-TR", { weekday: "long" });
@@ -182,8 +181,6 @@ export default function WeatherApp() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  // displayTemp is intentionally captured as the animation's starting value.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownTemp]);
 
   const selectHour = (index: number) => {
