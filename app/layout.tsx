@@ -23,8 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Atmos — Havanın Ritmini Hisset",
     description: "Canlı, akıllı ve atmosferik hava durumu deneyimi.",
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
-    openGraph: { title: "Atmos", description: "Havanın ritmini hisset.", images: [{ url: new URL("/og.png", base).toString(), width: 1536, height: 1024 }] },
-    twitter: { card: "summary_large_image", title: "Atmos", description: "Havanın ritmini hisset.", images: [new URL("/og.png", base).toString()] },
+    openGraph: { title: "Atmos", description: "Havanın ritmini hisset.", images: [{ url: new URL("/og-v2.png", base).toString(), width: 1664, height: 960 }] },
+    twitter: { card: "summary_large_image", title: "Atmos", description: "Havanın ritmini hisset.", images: [new URL("/og-v2.png", base).toString()] },
   };
 }
 

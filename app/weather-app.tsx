@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Cloud, CloudFog, CloudLightning, CloudRain, CloudSnow, Compass, Droplets, Eye, Gauge, Heart, LocateFixed, MapPin, Moon, Navigation, Search, Sparkles, Sun, Sunrise, Sunset, Umbrella, Wind, X } from "lucide-react";
 
 type Place = { name: string; country: string; latitude: number; longitude: number; admin1?: string };
 type WeatherData = {
-  current: { temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; precipitation: number; weather_code: number; wind_speed_10m: number; wind_direction_10m: number; pressure_msl: number; is_day: number };
+  current: { temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number; precipitation: number; weather_code: number; wind_speed_10m: number; wind_direction_10m: number; pressure_msl: number; visibility: number; is_day: number };
   hourly: { time: string[]; temperature_2m: number[]; precipitation_probability: number[]; weather_code: number[] };
   daily: { time: string[]; weather_code: number[]; temperature_2m_max: number[]; temperature_2m_min: number[]; precipitation_probability_max: number[]; wind_speed_10m_max: number[]; sunrise: string[]; sunset: string[]; uv_index_max: number[] };
 };
@@ -62,6 +64,27 @@ function RainCanvas({ active, storm, windSpeed, windDirection }: { active: boole
   return <canvas ref={canvasRef} className="rain-canvas" aria-hidden="true" />;
 }
 
+function SpotlightCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card || window.matchMedia("(pointer: coarse)").matches) return;
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty("--spot-x", `${event.clientX - rect.left}px`);
+    card.style.setProperty("--spot-y", `${event.clientY - rect.top}px`);
+  };
+  return <div ref={cardRef} onMouseMove={handleMove} className={`spotlight-card ${className}`}>{children}</div>;
+}
+
+const WeatherGlyph = ({ code, isDay = true, size = 24 }: { code: number; isDay?: boolean; size?: number }) => {
+  if (code === 0) return isDay ? <Sun size={size}/> : <Moon size={size}/>;
+  if (code <= 3) return <Cloud size={size}/>;
+  if (code <= 48) return <CloudFog size={size}/>;
+  if (code <= 67 || (code >= 80 && code <= 82)) return <CloudRain size={size}/>;
+  if (code <= 86) return <CloudSnow size={size}/>;
+  return <CloudLightning size={size}/>;
+};
+
 export default function WeatherApp() {
   const [place, setPlace] = useState<Place>(ISTANBUL);
   const [data, setData] = useState<WeatherData | null>(null);
@@ -69,6 +92,8 @@ export default function WeatherApp() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Place[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeResult, setActiveResult] = useState(0);
   const [selectedHour, setSelectedHour] = useState(0);
@@ -77,6 +102,7 @@ export default function WeatherApp() {
   const [favorites, setFavorites] = useState<Place[]>([]);
   const [displayTemp, setDisplayTemp] = useState(0);
   const [sceneChanging, setSceneChanging] = useState(false);
+  const reduceMotion = useReducedMotion();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shellRef = useRef<HTMLElement | null>(null);
 
@@ -94,7 +120,7 @@ export default function WeatherApp() {
   const loadWeather = useCallback(async (p: Place) => {
     setLoading(true); setError("");
     try {
-      const params = new URLSearchParams({ latitude: String(p.latitude), longitude: String(p.longitude), timezone: "auto", forecast_days: "7", current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl,is_day", hourly: "temperature_2m,precipitation_probability,weather_code", daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset,uv_index_max" });
+      const params = new URLSearchParams({ latitude: String(p.latitude), longitude: String(p.longitude), timezone: "auto", forecast_days: "7", current: "temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl,visibility,is_day", hourly: "temperature_2m,precipitation_probability,weather_code", daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset,uv_index_max" });
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
       if (!response.ok) throw new Error();
       setData(await response.json());
@@ -105,14 +131,16 @@ export default function WeatherApp() {
   useEffect(() => { loadWeather(place); }, [place, loadWeather]);
 
   const search = (value: string) => {
-    setQuery(value); setSearchOpen(true); setActiveResult(0);
+    setQuery(value); setSearchOpen(true); setActiveResult(0); setSearchMessage("");
     if (timer.current) clearTimeout(timer.current);
     if (value.trim().length < 2) { setResults([]); return; }
     timer.current = setTimeout(async () => {
+      setSearching(true);
       try {
         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(value)}&count=6&language=tr&format=json`);
-        const json = await res.json(); setResults(json.results || []);
-      } catch { setResults([]); }
+        const json = await res.json(); const found = json.results || []; setResults(found); if (!found.length) setSearchMessage("Bu isimde bir şehir bulamadık.");
+      } catch { setResults([]); setSearchMessage("Şehir araması şu anda kullanılamıyor."); }
+      finally { setSearching(false); }
     }, 280);
   };
   const choosePlace = (p: Place) => { setPlace(p); setQuery(""); setSearchOpen(false); setSelectedHour(0); };
@@ -189,6 +217,7 @@ export default function WeatherApp() {
   const atmosphereStyle = { "--wind-duration": `${Math.max(10, 38 - (data?.current.wind_speed_10m || 8) * .65)}s` } as React.CSSProperties;
 
   return <main ref={shellRef} onMouseMove={handleParallax} className={`weather-shell scene-${scene} theme-${theme} ${twilight ? "is-twilight" : ""} ${sceneChanging ? "scene-changing" : ""}`}>
+    <AnimatePresence mode="popLayout"><motion.div key={scene} className={`theme-backdrop backdrop-${scene}`} initial={{opacity:0,scale:1.04}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:.98}} transition={{duration:reduceMotion?0:.9,ease:[.22,1,.36,1]}}/></AnimatePresence>
     <div className="atmosphere" style={atmosphereStyle} aria-hidden="true">
       <div className="stars">{Array.from({length:24},(_,i)=><i key={i} style={{"--i":i,left:`${(i * 47 + i * i * 7) % 98}%`,top:`${4 + (i * 29 + i * i * 3) % 60}%`,width:`${1 + i % 3}px`,height:`${1 + i % 3}px`,animationDuration:`${2.2 + (i % 5) * .5}s`,animationDelay:`-${i * .19}s`} as React.CSSProperties}/>)}</div>
       <div className="sun"><div className="sun-rays"/></div><div className="moon"/>
@@ -203,49 +232,57 @@ export default function WeatherApp() {
       <div className="lightning"><i/><i/><i/></div><div className="scene-glow"/>
     </div>
     <RainCanvas active={scene === "rain" || scene === "storm"} storm={scene === "storm"} windSpeed={data?.current.wind_speed_10m || 0} windDirection={data?.current.wind_direction_10m || 0}/>
-    <header className="topbar">
-      <button className="brand" onClick={() => choosePlace(ISTANBUL)}><span className="brand-mark">◒</span><span>ATMOS</span></button>
+    <motion.header className="topbar" initial={{y:-20,opacity:0}} animate={{y:0,opacity:1}} transition={{duration:.55}}>
+      <button className="brand" onClick={() => choosePlace(ISTANBUL)}><span className="brand-mark"><Cloud size={19}/></span><span>ATMOS</span><small>WEATHER</small></button>
       <div className="header-actions">
         <div className="search-wrap">
-          <span className="search-icon">⌕</span>
+          <span className="search-icon"><Search size={17}/></span>
           <input value={query} onChange={e=>search(e.target.value)} onFocus={()=>setSearchOpen(true)} onKeyDown={e=>{if(e.key==="ArrowDown")setActiveResult(v=>Math.min(results.length-1,v+1));if(e.key==="ArrowUp")setActiveResult(v=>Math.max(0,v-1));if(e.key==="Enter"&&results[activeResult])choosePlace(results[activeResult]);if(e.key==="Escape")setSearchOpen(false)}} placeholder="Şehir ara..." aria-label="Şehir ara" />
-          {searchOpen && (query.length>1 || favorites.length>0) && <div className="search-panel">
-            {results.map((r,i)=><button key={`${r.latitude}-${r.longitude}`} className={i===activeResult?"active":""} onClick={()=>choosePlace(r)}><span>⌖</span><span><b>{r.name}</b><small>{r.admin1 ? `${r.admin1}, ` : ""}{r.country}</small></span></button>)}
-            {!results.length && query.length>1 && <p>Şehir aranıyor…</p>}
-            {!query && favorites.map(f=><button key={f.name} onClick={()=>choosePlace(f)}><span>★</span><span><b>{f.name}</b><small>Favori şehir</small></span></button>)}
-          </div>}
+          {searching && <span className="search-loader"/>}
+          <AnimatePresence>{searchOpen && (query.length>1 || favorites.length>0) && <motion.div className="search-panel" initial={{opacity:0,y:-8,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-6,scale:.98}}>
+            {results.map((r,i)=><button key={`${r.latitude}-${r.longitude}`} className={i===activeResult?"active":""} onClick={()=>choosePlace(r)}><MapPin size={16}/><span><b>{r.name}</b><small>{r.admin1 ? `${r.admin1}, ` : ""}{r.country}</small></span></button>)}
+            {searchMessage && <p className="search-message"><CloudFog size={18}/>{searchMessage}</p>}
+            {!query && favorites.map(f=><button key={f.name} onClick={()=>choosePlace(f)}><Heart size={15}/><span><b>{f.name}</b><small>Favori şehir</small></span></button>)}
+          </motion.div>}</AnimatePresence>
         </div>
-        <button className="icon-btn locate" onClick={useLocation} aria-label="Konumumu kullan">⌖</button>
-        <button className="theme-btn" onClick={cycleTheme} aria-label="Temayı değiştir"><span>◐</span><small>{theme === "auto" ? "Otomatik" : theme === "light" ? "Aydınlık" : "Karanlık"}</small></button>
+        <button className="locate-btn" onClick={useLocation} aria-label="Konumumu kullan"><LocateFixed size={17}/><span>Konumum</span></button>
+        <button className="theme-btn" onClick={cycleTheme} aria-label="Temayı değiştir">{theme === "dark" ? <Moon size={16}/> : <Sun size={16}/>}<small>{theme === "auto" ? "Otomatik" : theme === "light" ? "Aydınlık" : "Karanlık"}</small></button>
       </div>
-    </header>
+    </motion.header>
 
     {loading && <div className="state-card"><div className="spinner"/><p>Gökyüzü okunuyor…</p></div>}
     {error && !loading && <div className="state-card"><p>{error}</p><button onClick={()=>loadWeather(place)}>Tekrar dene</button></div>}
     {data && !loading && <div key={`${place.latitude}-${place.longitude}`} className="content content-ready">
-      <section className="hero">
-        <div className="location-row"><span className="eyebrow">⌖ {place.name}{place.country ? `, ${place.country}` : ""}</span><button onClick={toggleFavorite} className={`favorite ${isFav?"on":""}`} aria-label="Favorilere ekle">{isFav?"★":"☆"}</button></div>
-        <div className="temperature" aria-live="polite"><span>{displayTemp}</span><sup>°</sup></div>
-        <p className="condition">{weatherLabel(shownCode)}</p>
+      <AnimatePresence mode="wait"><motion.section key={`${place.name}-${shownCode}`} className="hero hero-glass" initial={{opacity:0,y:28,filter:"blur(12px)"}} animate={{opacity:1,y:0,filter:"blur(0px)"}} exit={{opacity:0,y:-18,filter:"blur(10px)"}} transition={{duration:reduceMotion?0:.6,ease:[.22,1,.36,1]}}>
+        <div className="hero-topline"><div className="location-row"><MapPin size={15}/><span className="eyebrow">{place.name}{place.country ? `, ${place.country}` : ""}</span></div><button onClick={toggleFavorite} className={`favorite ${isFav?"on":""}`} aria-label="Favorilere ekle"><Heart size={19} fill={isFav?"currentColor":"none"}/></button></div>
+        <motion.div className="temperature" aria-live="polite" initial={{scale:.72,opacity:0}} animate={{scale:1,opacity:1}} transition={{type:"spring",stiffness:120,damping:16}}><span>{displayTemp}</span><sup>°</sup></motion.div>
+        <div className="condition-line"><WeatherGlyph code={shownCode} isDay={shownIsDay===1} size={28}/><p className="condition">{weatherLabel(shownCode)}</p></div>
         <p className="feels">Hissedilen {Math.round(data.current.apparent_temperature)}° <i/> En yüksek {Math.round(data.daily.temperature_2m_max[0])}°</p>
-        <div className="advice"><span>✦</span><p>{advice}</p><button aria-label="Öneriyi kapat">×</button></div>
-      </section>
+        <div className="advice"><Sparkles size={16}/><p>{advice}</p></div>
+      </motion.section></AnimatePresence>
 
       <section className="metrics" aria-label="Hava durumu detayları">
-        {[["◫","NEM",`%${data.current.relative_humidity_2m}`],["↗","RÜZGÂR",`${Math.round(data.current.wind_speed_10m)} km/s`],["◉","BASINÇ",`${Math.round(data.current.pressure_msl)} hPa`],["☀","UV İNDEKSİ",String(Math.round(data.daily.uv_index_max[0]))]].map((m,i)=><article key={m[1]} style={{"--delay":`${i*70}ms`} as React.CSSProperties}><span className="metric-icon">{m[0]}</span><div><small>{m[1]}</small><b>{m[2]}</b></div></article>)}
+        {[
+          {label:"Nem",value:`%${data.current.relative_humidity_2m}`,icon:<Droplets/>},
+          {label:"Rüzgâr",value:`${Math.round(data.current.wind_speed_10m)} km/s`,icon:<Wind/>},
+          {label:"Basınç",value:`${Math.round(data.current.pressure_msl)} hPa`,icon:<Gauge/>},
+          {label:"Görüş",value:`${Math.round((data.current.visibility||0)/1000)} km`,icon:<Eye/>},
+          {label:"Gün doğumu",value:fmtTime(data.daily.sunrise[0]),icon:<Sunrise/>},
+          {label:"Gün batımı",value:fmtTime(data.daily.sunset[0]),icon:<Sunset/>}
+        ].map((metric,i)=><motion.div key={metric.label} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:.08*i,duration:.45}}><SpotlightCard className="metric-card"><span className="metric-icon">{metric.icon}</span><div><small>{metric.label}</small><b>{metric.value}</b></div></SpotlightCard></motion.div>)}
       </section>
 
       <section className="forecast-block tilt-card" onMouseMove={tilt} onMouseLeave={resetTilt}>
         <div className="section-title"><div><h2>Saatlik Tahmin</h2><p>Bugün · {new Date().toLocaleDateString("tr-TR",{day:"numeric",month:"long"})}</p></div><span>Kaydır →</span></div>
         <div className="hourly">
-          {hourIndices.map((idx,i)=><button key={idx} onClick={()=>selectHour(i)} className={selectedHour===i?"selected":""}><span>{i===0?"Şimdi":fmtTime(data.hourly.time[idx])}</span><b className="weather-symbol">{weatherIcon(data.hourly.weather_code[idx], new Date(data.hourly.time[idx]) >= sunrise && new Date(data.hourly.time[idx]) <= sunset)}</b><strong>{Math.round(data.hourly.temperature_2m[idx])}°</strong><small>{data.hourly.precipitation_probability[idx]>20?`♧ %${data.hourly.precipitation_probability[idx]}`:" "}</small></button>)}
+          {hourIndices.map((idx,i)=><motion.button key={idx} onClick={()=>selectHour(i)} className={selectedHour===i?"selected":""} initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} whileHover={{y:-5}} transition={{delay:i*.035}}><span>{i===0?"Şimdi":fmtTime(data.hourly.time[idx])}</span><b className="weather-symbol"><WeatherGlyph code={data.hourly.weather_code[idx]} isDay={new Date(data.hourly.time[idx]) >= sunrise && new Date(data.hourly.time[idx]) <= sunset}/></b><strong>{Math.round(data.hourly.temperature_2m[idx])}°</strong><small>{data.hourly.precipitation_probability[idx]>20?<><Droplets size={11}/>%{data.hourly.precipitation_probability[idx]}</>:" "}</small></motion.button>)}
         </div>
       </section>
 
       <section className="bottom-grid">
         <div className="weekly forecast-block tilt-card" onMouseMove={tilt} onMouseLeave={resetTilt}>
           <div className="section-title"><div><h2>7 Günlük Tahmin</h2><p>Haftaya genel bakış</p></div></div>
-          <div className="days">{data.daily.time.map((d,i)=><div key={d} className={`day ${expandedDay===i?"expanded":""}`}><button onClick={()=>setExpandedDay(expandedDay===i?null:i)}><span className="day-name">{fmtDay(d,i)}</span><span className="day-condition"><i>{weatherIcon(data.daily.weather_code[i])}</i>{weatherLabel(data.daily.weather_code[i])}</span><span className="rain-chance">♧ %{data.daily.precipitation_probability_max[i]}</span><span className="temp-range"><b>{Math.round(data.daily.temperature_2m_max[i])}°</b><em>{Math.round(data.daily.temperature_2m_min[i])}°</em></span><span className="chev">⌄</span></button>{expandedDay===i&&<div className="day-detail"><span>Rüzgâr {Math.round(data.daily.wind_speed_10m_max[i])} km/s</span><span>UV {Math.round(data.daily.uv_index_max[i])}</span><span>Gün doğumu {fmtTime(data.daily.sunrise[i])}</span><span>Gün batımı {fmtTime(data.daily.sunset[i])}</span></div>}</div>)}</div>
+          <div className="days">{data.daily.time.map((d,i)=><motion.div key={d} className={`day ${expandedDay===i?"expanded":""}`} initial={{opacity:0,y:24}} animate={{opacity:1,y:0}} transition={{delay:i*.075,duration:.45}}><SpotlightCard className="day-card"><button onClick={()=>setExpandedDay(expandedDay===i?null:i)}><span className="day-name">{fmtDay(d,i)}</span><span className="daily-icon"><WeatherGlyph code={data.daily.weather_code[i]} size={30}/></span><span className="day-condition">{weatherLabel(data.daily.weather_code[i])}</span><span className="rain-chance"><Droplets size={12}/>%{data.daily.precipitation_probability_max[i]}</span><span className="temp-range"><b>{Math.round(data.daily.temperature_2m_max[i])}°</b><em>{Math.round(data.daily.temperature_2m_min[i])}°</em></span></button><AnimatePresence>{expandedDay===i&&<motion.div className="day-detail" initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}}><span><Wind size={12}/>{Math.round(data.daily.wind_speed_10m_max[i])} km/s</span><span>UV {Math.round(data.daily.uv_index_max[i])}</span></motion.div>}</AnimatePresence></SpotlightCard></motion.div>)}</div>
         </div>
         <div className="side-stack">
           <article className="sun-card"><div><small>GÜN DOĞUMU</small><b>{fmtTime(data.daily.sunrise[0])}</b></div><div className="sun-arc"><i/><span>☀</span></div><div><small>GÜN BATIMI</small><b>{fmtTime(data.daily.sunset[0])}</b></div></article>
